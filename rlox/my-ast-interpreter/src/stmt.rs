@@ -12,6 +12,10 @@ pub enum Stmt {
         then_branch: Box<Stmt>,
         else_branch: Option<Box<Stmt>>,
     },
+    While {
+        condition: Expr,
+        body: Box<Stmt>,
+    },
 }
 
 impl Display for Stmt {
@@ -41,6 +45,11 @@ impl Display for Stmt {
                     write!(f, "{}", else_branch)?;
                 }
 
+                writeln!(f, "}}")
+            }
+            Stmt::While { condition, body } => {
+                writeln!(f, "while ({}) {{", condition)?;
+                writeln!(f, "{}", body)?;
                 writeln!(f, "}}")
             }
         }

@@ -1,5 +1,5 @@
-*/target
-*/*.class
-*/*.o
-*/*.exe
-/target
+**/target
+**/*.class
+**/*.o
+**/*.exe
+**/*.txt

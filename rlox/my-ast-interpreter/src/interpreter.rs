@@ -98,6 +98,7 @@ impl Interpreter {
                 then_branch,
                 else_branch,
             } => self.eval_if_stmt(condition, then_branch, else_branch),
+            Stmt::While { condition, body } => self.eval_while_stmt(condition, body),
         }
     }
 
@@ -112,6 +113,7 @@ impl Interpreter {
             for stmt in statements.iter() {
                 self.execute(stmt)?;
             }
+
             Ok(())
         })();
 
@@ -126,6 +128,7 @@ impl Interpreter {
                 if self.status == InterpreterStatus::Evaluate {
                     println!("{}", stmt);
                 }
+
                 Ok(())
             }
             _ => unreachable!("use with expression statements only!"),
@@ -137,6 +140,7 @@ impl Interpreter {
             Stmt::Print(expr) => {
                 let stmt = self.evaluate(expr)?;
                 println!("{}", stmt);
+
                 Ok(())
             }
             _ => unreachable!("use with print statements only!"),
@@ -148,6 +152,17 @@ impl Interpreter {
         self.environment
             .borrow_mut()
             .define(name.lexeme.clone(), expr);
+
+        Ok(())
+    }
+
+    fn eval_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
+        // let expr_val = self.evaluate(condition)?; // nope! this makes conditional only evaluated once (!!)
+
+        while self.is_truthy(&self.evaluate(condition)?) {
+            self.execute(body)?;
+        }
+
         Ok(())
     }
 
@@ -281,14 +296,6 @@ impl Interpreter {
         left: &Expr,
         right: &Expr,
     ) -> Result<ExprValue, RuntimeError> {
-        // let left = self.evaluate(left)?;
-
-        // if operator.token_type == TokenType::OR {
-        //     // return Ok(left);
-        // }
-
-        // Ok(self.evaluate(right)?)
-
         match operator.token_type {
             TokenType::OR => Ok(self.evaluate(left)?),
             _ => Ok(self.evaluate(right)?),

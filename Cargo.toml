@@ -1,3 +1,3 @@
 [workspace]
-members = ["my-ast-interpreter", "my-bytecode-interpreter"]
+members = ["rlox/my-ast-interpreter", "rlox/my-bytecode-interpreter"]
 resolver = "2"

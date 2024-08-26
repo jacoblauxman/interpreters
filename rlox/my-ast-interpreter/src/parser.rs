@@ -59,6 +59,10 @@ impl Parser {
     fn statement(&mut self) -> ParseStmtResult {
         if self.match_types(&[TokenType::PRINT]) {
             self.print_statement()
+        } else if self.match_types(&[TokenType::WHILE]) {
+            self.while_statement()
+        } else if self.match_types(&[TokenType::FOR]) {
+            self.for_statement()
         } else if self.match_types(&[TokenType::IF]) {
             self.if_statement()
         } else if self.match_types(&[TokenType::LEFTBRACE]) {
@@ -66,6 +70,84 @@ impl Parser {
         } else {
             self.expression_statement()
         }
+    }
+
+    fn for_statement(&mut self) -> ParseStmtResult {
+        self.consume(&TokenType::LEFTPAREN, "Expect '(' after 'for'.")?;
+
+        let mut initializer = None;
+
+        if !self.match_types(&[TokenType::SEMICOLON]) {
+            if self.match_types(&[TokenType::VAR]) {
+                initializer = Some(self.var_declaration()?);
+            } else {
+                initializer = Some(self.expression_statement()?);
+            }
+        }
+
+        let mut condition = None;
+
+        if !self.check(&TokenType::SEMICOLON) {
+            condition = Some(self.expression()?);
+        }
+        self.consume(
+            &TokenType::SEMICOLON,
+            "Expect ';' after 'for' loop condition.",
+        )?;
+
+        let mut increment = None;
+
+        if !self.check(&TokenType::RIGHTPAREN) {
+            increment = Some(self.expression()?);
+        }
+
+        self.consume(&TokenType::RIGHTPAREN, "Expect ')' after 'for' clauses.")?;
+
+        let mut body = self.statement()?;
+
+        body = match body {
+            Stmt::Block(stmts) => {
+                let mut statements = stmts.clone();
+
+                if let Some(increment) = increment {
+                    statements.push(Stmt::Expression(increment));
+                }
+
+                if condition.is_none() {
+                    condition.replace(Expr::Bool(true));
+                }
+
+                let while_body = Stmt::While {
+                    condition: condition.expect("condition should be some"),
+                    body: Box::new(Stmt::Block(statements.clone())),
+                };
+
+                if initializer.is_some() {
+                    Stmt::Block(vec![
+                        initializer.expect("initializer should be some"),
+                        while_body,
+                    ])
+                } else {
+                    while_body
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        Ok(body)
+    }
+
+    fn while_statement(&mut self) -> ParseStmtResult {
+        self.consume(&TokenType::LEFTPAREN, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(
+            &TokenType::RIGHTPAREN,
+            "Expect ')' after 'while' condition.",
+        )?;
+
+        let body = Box::new(self.statement()?);
+
+        Ok(Stmt::While { condition, body })
     }
 
     fn if_statement(&mut self) -> ParseStmtResult {
