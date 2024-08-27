@@ -1,7 +1,7 @@
 use crate::{ExprValue, RuntimeError, Token};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Environment {
     values: HashMap<String, ExprValue>,
     enclosing: Option<Rc<RefCell<Environment>>>,

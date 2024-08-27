@@ -33,11 +33,12 @@ impl Display for ExprValue {
             }
             ExprValue::String(s) => write!(f, "{s}"),
             ExprValue::Nil => write!(f, "nil"),
+            ExprValue::Call(callable) => write!(f, "<fn {} >", callable.name()),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 enum InterpreterStatus {
     #[default]
     Evaluate,
@@ -55,17 +56,23 @@ impl TryFrom<&str> for InterpreterStatus {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>,
     status: InterpreterStatus,
+    globals: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
+        let globals = Environment::new();
+        // globals.assign(name, value);
         Interpreter {
+            // environment: Rc::new(RefCell::new(Environment::new())),
             environment: Rc::new(RefCell::new(Environment::new())),
             status: InterpreterStatus::Evaluate,
+            // globals: Environment::new(),
+            globals,
         }
     }
 
@@ -100,6 +107,7 @@ impl Interpreter {
                 else_branch,
             } => self.eval_if_stmt(condition, then_branch, else_branch),
             Stmt::While { condition, body } => self.eval_while_stmt(condition, body),
+            Stmt::Function(_) => todo!(),
         }
     }
 
@@ -123,6 +131,7 @@ impl Interpreter {
     }
 
     fn eval_expr_stmt(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        // fn eval_expr_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
                 let stmt = self.evaluate(expr)?;
@@ -137,6 +146,7 @@ impl Interpreter {
     }
 
     fn eval_print_stmt(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
+        // fn eval_print_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Print(expr) => {
                 let stmt = self.evaluate(expr)?;
@@ -149,6 +159,7 @@ impl Interpreter {
     }
 
     fn eval_var_stmt(&self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
+        // fn eval_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
         let expr = self.evaluate(initializer)?;
         self.environment
             .borrow_mut()
@@ -185,6 +196,7 @@ impl Interpreter {
     }
 
     pub fn evaluate(&self, expr: &Expr) -> Result<ExprValue, RuntimeError> {
+        // pub fn evaluate(&mut self, expr: &Expr) -> Result<ExprValue, RuntimeError> {
         match expr {
             Expr::Bool(b) => Ok(ExprValue::Bool(*b)),
             Expr::Number(n) => Ok(ExprValue::Number(*n)),
@@ -209,6 +221,7 @@ impl Interpreter {
                 left,
                 right,
             } => self.evaluate_logical(operator, left, right),
+            // Expr::Call { .. } => todo!(),
             Expr::Call {
                 callee,
                 paren,
@@ -218,6 +231,11 @@ impl Interpreter {
     }
 
     fn evaluate_unary(&self, operator: &Token, right: &Expr) -> Result<ExprValue, RuntimeError> {
+        // fn evaluate_unary(
+        //     &mut self,
+        //     operator: &Token,
+        //     right: &Expr,
+        // ) -> Result<ExprValue, RuntimeError> {
         let right = self.evaluate(right)?;
 
         match operator.token_type {
@@ -240,6 +258,12 @@ impl Interpreter {
         left: &Expr,
         right: &Expr,
     ) -> Result<ExprValue, RuntimeError> {
+        // fn evaluate_binary(
+        //     &mut self,
+        //     operator: &Token,
+        //     left: &Expr,
+        //     right: &Expr,
+        // ) -> Result<ExprValue, RuntimeError> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
 
@@ -298,6 +322,7 @@ impl Interpreter {
 
     fn evaluate_call(
         &self,
+        // &mut self, // this causes all 'evaluate' calls to require &mut self?
         callee: &Expr,
         paren: &Token,
         arguments: &[Box<Expr>],
@@ -311,22 +336,29 @@ impl Interpreter {
         }
 
         if let ExprValue::Call(function) = callee {
-            if args.len() != function.arity() {
+            let (args_len, fn_arity) = (args.len(), function.arity());
+            // if args.len() != function.arity() {
+            if args_len != fn_arity {
                 return Err(RuntimeError {
                     token: paren.lexeme.clone(),
                     message: format!(
                         "Expected {} arguments but got {}.",
-                        function.arity(),
-                        args.len()
+                        // function.arity(),
+                        // args.len()
+                        fn_arity,
+                        args_len
                     ),
-                    line: paren.lne,
+                    line: paren.line,
                 });
             }
+
+            let mut interpreter = self.clone(); // TODO: FIX THIS MESS
+            Ok(function.call(&mut interpreter, args))
         } else {
             Err(RuntimeError {
                 token: paren.lexeme.clone(),
-                message: (),
-                line: (),
+                message: "Can only call functions and methods".to_string(),
+                line: paren.line,
             })
         }
     }
@@ -337,6 +369,12 @@ impl Interpreter {
         left: &Expr,
         right: &Expr,
     ) -> Result<ExprValue, RuntimeError> {
+        // fn evaluate_logical(
+        //     &self,
+        //     operator: &Token,
+        //     left: &Expr,
+        //     right: &Expr,
+        // ) -> Result<ExprValue, RuntimeError> {
         match operator.token_type {
             TokenType::OR => Ok(self.evaluate(left)?),
             _ => Ok(self.evaluate(right)?),
@@ -392,4 +430,13 @@ impl Interpreter {
             _ => false,
         }
     }
+}
+
+fn create_def_env() -> Environment {
+    todo!();
+    // lzet mut env = Environment::new();
+    // let tok = Token::new(TokenType::VAR, "clock".to_string(), None, 0);
+    // let callable = Callable::Function { name: tok, params: (), body: () }
+    // env.define("clock".to_string(), ExprValue::Call(Callable::Function { name: tok, params: Vec::new(), body: Box::new(Stmt::Function(())) }));
+    // env
 }

@@ -1,3 +1,4 @@
+use crate::Callable;
 use crate::{Expr, Stmt, Token, TokenLiteral, TokenType};
 
 #[derive(Debug, thiserror::Error)]
@@ -215,9 +216,12 @@ impl Parser {
             &format!("Expect '{{' before {kind} body."),
         )?;
 
-        let body = self.block()?;
+        let body = Box::new(self.block()?);
 
-        Ok(Stmt::Function { name, params, body })
+        let callable = Callable::Function { name, params, body };
+
+        // Ok(Stmt::Function { name, params, body })
+        Ok(Stmt::Function(callable))
     }
 
     fn block(&mut self) -> Result<Stmt, ParseError> {

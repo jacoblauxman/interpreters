@@ -14,21 +14,13 @@ pub use scanner::Scanner;
 pub use stmt::Stmt;
 pub use token::*;
 
-// pub trait Callable {
-//     fn call(
-//         &self,
-//         interpreter: &mut Interpreter,
-//         arguments: Vec<ExprValue>,
-//     ) -> Result<ExprValue, RuntimeError>;
-//     fn arity(&self) -> usize;
-// }
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Callable {
     Function {
         name: Token,
         params: Vec<Token>,
-        body: Vec<Stmt>,
+        // body: Vec<Stmt>,
+        body: Box<Stmt>,
     },
     // Method {
     //     name: Token,
@@ -38,7 +30,7 @@ pub enum Callable {
 }
 
 impl Callable {
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         match self {
             Callable::Function {
                 name: _,
@@ -46,5 +38,19 @@ impl Callable {
                 body: _,
             } => params.len(),
         }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Callable::Function {
+                name,
+                params: _,
+                body: _,
+            } => &name.lexeme,
+        }
+    }
+
+    pub fn call(&self, interpreter: &mut Interpreter, args: Vec<ExprValue>) -> ExprValue {
+        todo!()
     }
 }

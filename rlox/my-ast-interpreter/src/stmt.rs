@@ -59,10 +59,7 @@ impl Display for Stmt {
                 writeln!(f, "{}", body)?;
                 writeln!(f, "}}")
             }
-            // Stmt::Function { name, params, body } => {
-            //     todo!()
-            // }
-            Stmt::Function(function) => todo!(),
+            Stmt::Function(_) => todo!(),
         }
     }
 }
