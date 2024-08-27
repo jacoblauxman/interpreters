@@ -23,6 +23,9 @@ public class GenerateAst {
                 "Assign : Token name, Expr value",
                 //
                 "Binary   : Expr left, Token operator, Expr right",
+                // Ch 10
+                "Call     : Expr callee, Token paren, List<Expr> arguments",
+                //
                 "Grouping : Expr expression",
                 "Literal  : Object value",
                 // Ch 9 - control flow
@@ -44,8 +47,10 @@ public class GenerateAst {
                 "Var : Token name, Expr initializer",
                 // Ch 9 - control flow
                 "If  : Expr condition, Stmt thenBranch," + " Stmt elseBranch",
-                "While : Expr condition, Stmt body"
+                "While : Expr condition, Stmt body",
                 //
+                "Function : Token name, List<Token> params," +
+                " List<Stmt> body"
             )
         );
     }
