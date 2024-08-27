@@ -3,8 +3,6 @@ package lox;
 import java.util.ArrayList;
 import java.util.List;
 
-// class Interpreter implements Expr.Visitor<Object> {
-// update for Ch 8 + Statement use
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     // Ch 10 update
@@ -38,9 +36,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         );
     }
 
-    //
-
-    //
     void interpret(Expr expression) {
         try {
             Object value = evaluate(expression);
@@ -50,7 +45,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    // Ch 8 update for statements
     void interpret(List<Stmt> statements) {
         try {
             for (Stmt statement : statements) {
@@ -60,8 +54,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             Lox.runtimeError(error);
         }
     }
-
-    // Ch 8
 
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
@@ -140,7 +132,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return expr.accept(this);
     }
 
-    // Ch 8: Statements
     private void execute(Stmt stmt) {
         stmt.accept(this);
     }
@@ -173,12 +164,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
-        LoxFunction function = new LoxFunction(stmt);
+        LoxFunction function = new LoxFunction(stmt, environment); // the env active when the function is declared, NOT called (lexical scope surrounding fn def)
+        // used as call's parent instead of straight to `globals`
         environment.define(stmt.name.lexeme, function);
         return null;
     }
 
-    // Ch 9
     @Override
     public Void visitIfStmt(Stmt.If stmt) {
         if (isTruthy(evaluate(stmt.condition))) {
@@ -189,12 +180,19 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    //
     @Override
     public Void visitPrintStmt(Stmt.Print stmt) {
         Object value = evaluate(stmt.expression);
         System.out.println(stringify(value));
         return null;
+    }
+
+    @Override
+    public Void visitReturnStmt(Stmt.Return stmt) {
+        Object value = null;
+        if (stmt.value != null) value = evaluate(stmt.value);
+
+        throw new Return(value);
     }
 
     @Override
@@ -208,7 +206,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Ch9
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {
         while (isTruthy(evaluate(stmt.condition))) {
@@ -217,8 +214,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
         return null;
     }
-
-    // Ch9
 
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
@@ -232,7 +227,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return environment.get(expr.name);
     }
 
-    //
     @Override
     public Object visitBinaryExpr(Expr.Binary expr) {
         Object left = evaluate(expr.left);
@@ -282,7 +276,6 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Ch 10
     @Override
     public Object visitCallExpr(Expr.Call expr) {
         Object callee = evaluate(expr.callee);

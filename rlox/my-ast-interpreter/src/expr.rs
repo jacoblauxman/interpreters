@@ -1,7 +1,7 @@
 use crate::Token;
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(f64),
     String(String),
@@ -23,6 +23,11 @@ pub enum Expr {
         operator: Token,
         left: Box<Expr>,
         right: Box<Expr>,
+    },
+    Call {
+        callee: Box<Expr>,
+        paren: Token, // for location/RTE info re: fn's closing paren
+        arguments: Vec<Box<Expr>>,
     },
 }
 
@@ -47,6 +52,31 @@ impl Display for Expr {
                 left,
                 right,
             } => write!(f, "{} {} {}", left, operator, right),
+            Expr::Call {
+                callee,
+                paren: _,
+                arguments,
+            } => {
+                write!(f, "{}(", callee)?;
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i < arguments.len() - 1 {
+                        write!(f, "{}, ", arg)?;
+                    } else {
+                        write!(f, "{}", arg)?;
+                    }
+                }
+                write!(f, ")")
+
+                // let mut args = arguments.iter().peekable();
+                // while let Some(arg) = args.next() {
+                //     if args.peek().is_some() {
+                //         write!(f, "{}, ", arg)?;
+                //     } else {
+                //         write!(f, "{}", arg)?;
+                //     }
+                // }
+                // write!(f, ")")
+            }
         }
     }
 }

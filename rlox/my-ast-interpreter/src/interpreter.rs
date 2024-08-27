@@ -1,5 +1,5 @@
-use crate::Environment;
-use crate::{Expr, Stmt, Token, TokenType};
+use crate::Callable;
+use crate::{Environment, Expr, Stmt, Token, TokenType};
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -20,6 +20,7 @@ pub enum ExprValue {
     Number(f64),
     String(String),
     Nil,
+    Call(Callable),
 }
 
 impl Display for ExprValue {
@@ -208,6 +209,11 @@ impl Interpreter {
                 left,
                 right,
             } => self.evaluate_logical(operator, left, right),
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => self.evaluate_call(callee, paren, arguments),
         }
     }
 
@@ -287,6 +293,41 @@ impl Interpreter {
                 message: "Unrecognized binary operator.".to_string(),
                 line: operator.line,
             }),
+        }
+    }
+
+    fn evaluate_call(
+        &self,
+        callee: &Expr,
+        paren: &Token,
+        arguments: &[Box<Expr>],
+    ) -> Result<ExprValue, RuntimeError> {
+        let callee = self.evaluate(callee)?;
+
+        let mut args = Vec::new();
+
+        for arg in arguments {
+            args.push(self.evaluate(arg)?);
+        }
+
+        if let ExprValue::Call(function) = callee {
+            if args.len() != function.arity() {
+                return Err(RuntimeError {
+                    token: paren.lexeme.clone(),
+                    message: format!(
+                        "Expected {} arguments but got {}.",
+                        function.arity(),
+                        args.len()
+                    ),
+                    line: paren.lne,
+                });
+            }
+        } else {
+            Err(RuntimeError {
+                token: paren.lexeme.clone(),
+                message: (),
+                line: (),
+            })
         }
     }
 

@@ -19,24 +19,16 @@ public class GenerateAst {
             outputDir,
             "Expr",
             Arrays.asList(
-                // ch 8 - statements
                 "Assign : Token name, Expr value",
-                //
                 "Binary   : Expr left, Token operator, Expr right",
-                // Ch 10
                 "Call     : Expr callee, Token paren, List<Expr> arguments",
-                //
                 "Grouping : Expr expression",
                 "Literal  : Object value",
-                // Ch 9 - control flow
                 "Logical  : Expr left, Token operator, Expr right",
-                //
                 "Unary    : Token operator, Expr right",
-                // Ch 8 - statements
                 "Variable : Token name"
             )
         );
-        // added with ch 8 - our statements (expression statements + print statements)
         defineAst(
             outputDir,
             "Stmt",
@@ -44,11 +36,10 @@ public class GenerateAst {
                 "Block : List<Stmt> statements",
                 "Expression : Expr expression",
                 "Print : Expr expression",
+                "Return : Token keyword, Expr value", // keeps 'return' Token for rerror reporting
                 "Var : Token name, Expr initializer",
-                // Ch 9 - control flow
                 "If  : Expr condition, Stmt thenBranch," + " Stmt elseBranch",
                 "While : Expr condition, Stmt body",
-                //
                 "Function : Token name, List<Token> params," +
                 " List<Stmt> body"
             )

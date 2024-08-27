@@ -1,7 +1,8 @@
+use crate::Callable;
 use crate::{Expr, Token};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expression(Expr),
     Print(Expr),
@@ -16,6 +17,12 @@ pub enum Stmt {
         condition: Expr,
         body: Box<Stmt>,
     },
+    // Function {
+    //     name: Token,
+    //     params: Vec<Token>,
+    //     body: Vec<Stmt>,
+    // },
+    Function(Callable),
 }
 
 impl Display for Stmt {
@@ -52,6 +59,10 @@ impl Display for Stmt {
                 writeln!(f, "{}", body)?;
                 writeln!(f, "}}")
             }
+            // Stmt::Function { name, params, body } => {
+            //     todo!()
+            // }
+            Stmt::Function(function) => todo!(),
         }
     }
 }

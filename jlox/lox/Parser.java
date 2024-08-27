@@ -17,20 +17,9 @@ class Parser {
         this.tokens = tokens;
     }
 
-    // Ch 6-7: Parsing + Evaluating Expressions
-    // Expr parse() {
-    //     try {
-    //         return expression();
-    //     } catch (ParseError error) {
-    //         return null;
-    //     }
-    // }
-
-    // Ch 8: Statements update:
     List<Stmt> parse() {
         List<Stmt> statements = new ArrayList<>();
         while (!isAtEnd()) {
-            // statements.add(statement());
             statements.add(declaration());
         }
 
@@ -38,11 +27,9 @@ class Parser {
     }
 
     private Expr expression() {
-        // return equality(); // updated w/ ch 8 statements
         return assignment();
     }
 
-    // Ch 8
     private Stmt declaration() {
         // note: highest level 'Stmt' - sync when in 'panic mode'
         // -> try/catch leads to error recovery, then tries to parse next statement
@@ -70,7 +57,6 @@ class Parser {
         return new Stmt.Var(name, initializer);
     }
 
-    // Ch 9 - control flow
     private Stmt whileStatement() {
         consume(LEFT_PAREN, "Expect '(' after 'while'.");
         Expr condition = expression();
@@ -80,14 +66,12 @@ class Parser {
         return new Stmt.While(condition, body);
     }
 
-    // Ch 9
     private Stmt statement() {
-        // Ch 9
         if (match(FOR)) return forStatement();
         if (match(IF)) return ifStatement();
         if (match(WHILE)) return whileStatement();
-        //
         if (match(PRINT)) return printStatement();
+        if (match(RETURN)) return returnStatement();
         if (match(LEFT_BRACE)) return new Stmt.Block(block());
         return expressionStatement();
     }
@@ -159,6 +143,17 @@ class Parser {
         return new Stmt.Print(value);
     }
 
+    private Stmt returnStatement() {
+        Token keyword = previous();
+        Expr value = null;
+        if (!check(SEMICOLON)) {
+            value = expression();
+        }
+
+        consume(SEMICOLON, "Expect ';' after return value.");
+        return new Stmt.Return(keyword, value);
+    }
+
     private Stmt expressionStatement() {
         Expr expr = expression();
         consume(SEMICOLON, "Expect ';' after expression.");
@@ -200,9 +195,8 @@ class Parser {
     }
 
     private Expr assignment() {
-        // Expr expr = equality(); // Ch 9
         Expr expr = or();
-        //
+
         if (match(EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
@@ -219,9 +213,6 @@ class Parser {
         return expr;
     }
 
-    // Ch 8
-
-    // Ch 9
     private Expr or() {
         Expr expr = and();
 
@@ -245,8 +236,6 @@ class Parser {
 
         return expr;
     }
-
-    // Ch 9
 
     private Expr equality() {
         // note: effectively matches an 'equality' operator OR 'anything of higher precedence'
@@ -304,11 +293,9 @@ class Parser {
             return new Expr.Unary(operator, right);
         }
 
-        // return primary(); // Ch 10
         return call();
     }
 
-    // Ch 10
     private Expr finishCall(Expr callee) {
         List<Expr> arguments = new ArrayList<>();
         if (!check(RIGHT_PAREN)) {
