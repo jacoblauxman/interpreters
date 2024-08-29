@@ -53,9 +53,7 @@ impl Display for Expr {
                 right,
             } => write!(f, "{} {} {}", left, operator, right),
             Expr::Call {
-                callee,
-                paren: _,
-                arguments,
+                callee, arguments, ..
             } => {
                 write!(f, "{}(", callee)?;
                 for (i, arg) in arguments.iter().enumerate() {
@@ -66,16 +64,6 @@ impl Display for Expr {
                     }
                 }
                 write!(f, ")")
-
-                // let mut args = arguments.iter().peekable();
-                // while let Some(arg) = args.next() {
-                //     if args.peek().is_some() {
-                //         write!(f, "{}, ", arg)?;
-                //     } else {
-                //         write!(f, "{}", arg)?;
-                //     }
-                // }
-                // write!(f, ")")
             }
         }
     }

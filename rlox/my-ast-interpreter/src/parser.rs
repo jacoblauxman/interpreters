@@ -62,6 +62,8 @@ impl Parser {
     fn statement(&mut self) -> ParseStmtResult {
         if self.match_types(&[TokenType::PRINT]) {
             self.print_statement()
+        } else if self.match_types(&[TokenType::RETURN]) {
+            self.return_statement()
         } else if self.match_types(&[TokenType::WHILE]) {
             self.while_statement()
         } else if self.match_types(&[TokenType::FOR]) {
@@ -158,7 +160,7 @@ impl Parser {
         let condition = self.expression()?;
         self.consume(&TokenType::RIGHTPAREN, "Expect ')' after 'if' condition.")?;
 
-        let then_branch = self.statement()?;
+        let then_branch = Box::new(self.statement()?);
         let mut else_branch = None;
 
         if self.match_types(&[TokenType::ELSE]) {
@@ -167,7 +169,7 @@ impl Parser {
 
         Ok(Stmt::If {
             condition,
-            then_branch: Box::new(then_branch),
+            then_branch,
             else_branch,
         })
     }
@@ -180,6 +182,26 @@ impl Parser {
         self.match_types(&[TokenType::SEMICOLON]);
 
         Ok(Stmt::Print(val))
+    }
+
+    fn return_statement(&mut self) -> ParseStmtResult {
+        let keyword = self.previous().clone();
+
+        // let mut val = None;
+
+        // if !self.check(&TokenType::SEMICOLON) {
+        //     val = Some(self.expression()?);
+        // }
+
+        let val = if !self.check(&TokenType::SEMICOLON) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        let _ = self.consume(&TokenType::SEMICOLON, "Expect ';' after return value.")?;
+
+        Ok(Stmt::Return(keyword, val))
     }
 
     fn expression_statement(&mut self) -> ParseStmtResult {
@@ -200,17 +222,22 @@ impl Parser {
         let mut params = Vec::new();
 
         if !self.check(&TokenType::RIGHTPAREN) {
-            while self.match_types(&[TokenType::COMMA]) {
+            loop {
                 if params.len() >= 255 {
                     return Err(ParseError(
                         "Can't have more than 255 parameters.".to_string(),
                     ));
                 }
+
                 params.push(self.consume(&TokenType::IDENTIFIER, "Expect parameter name.")?);
+                if !self.match_types(&[TokenType::COMMA]) {
+                    break;
+                }
             }
         }
 
         let _ = self.consume(&TokenType::RIGHTPAREN, "Expect ')' after parameters.")?;
+
         let _ = self.consume(
             &TokenType::LEFTBRACE,
             &format!("Expect '{{' before {kind} body."),
@@ -218,10 +245,7 @@ impl Parser {
 
         let body = Box::new(self.block()?);
 
-        let callable = Callable::Function { name, params, body };
-
-        // Ok(Stmt::Function { name, params, body })
-        Ok(Stmt::Function(callable))
+        Ok(Stmt::Function(Callable::Function { name, params, body }))
     }
 
     fn block(&mut self) -> Result<Stmt, ParseError> {
@@ -229,7 +253,11 @@ impl Parser {
 
         while !self.check(&TokenType::RIGHTBRACE) && !self.is_at_end() {
             statements.push(self.declaration()?);
+            // let stmt = self.declaration()?;
+            // println!("parsed stmt in block: {:?}", stmt);
+            // statements.push(stmt);
         }
+        // println!("exiting block, curr tok: {}", self.peek());
 
         let _ = self.consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
 
@@ -241,8 +269,6 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> ParseResult {
-        // let expr = self.equality()?;
-
         let expr = self.or()?;
 
         if self.match_types(&[TokenType::ASSIGN]) {
@@ -379,7 +405,6 @@ impl Parser {
             });
         }
 
-        // self.primary()
         self.call()
     }
 
@@ -401,15 +426,37 @@ impl Parser {
         let mut arguments = Vec::new();
 
         if !self.check(&TokenType::RIGHTPAREN) {
-            while self.match_types(&[TokenType::COMMA]) {
+            loop {
                 if arguments.len() >= 255 {
-                    return Err(ParseError(
-                        "Can't have more than 255 arguments.".to_string(),
-                    ));
+                    return Err(ParseError("Can't have more than 255 arguments".to_string()));
                 }
                 arguments.push(Box::new(self.expression()?));
+
+                if !self.match_types(&[TokenType::COMMA]) {
+                    break;
+                }
             }
         }
+
+        // if !self.check(&TokenType::RIGHTPAREN) {
+        //     while self.match_types(&[TokenType::COMMA]) {
+        //         if arguments.len() >= 255 {
+        //             return Err(ParseError(
+        //                 "Can't have more than 255 arguments.".to_string(),
+        //             ));
+        //         }
+        //         arguments.push(Box::new(self.expression()?));
+        //     }
+        // }
+
+        // let mut paren = None;
+
+        // if self.match_types(&[TokenType::RIGHTPAREN]) {
+        //     paren = Some(self.consume(
+        //         &TokenType::RIGHTPAREN,
+        //         "Expect ')' after function arguments.",
+        //     )?);
+        // }
 
         let paren = self.consume(
             &TokenType::RIGHTPAREN,
@@ -457,7 +504,6 @@ impl Parser {
         let peeked = self.peek();
 
         Err(ParseError(format!(
-            // "Expect expression. Got {:?}",
             "[line {}] Parse Error: Expected valid primary expression. Received '{}'.",
             peeked.line, peeked.lexeme
         )))
@@ -475,6 +521,7 @@ impl Parser {
     }
 
     fn consume(&mut self, token_type: &TokenType, message: &str) -> Result<Token, ParseError> {
+        // println!("in consume, curr token: {}", self.tokens[self.current]);
         if self.check(token_type) {
             return Ok(self.advance().clone());
         } else {

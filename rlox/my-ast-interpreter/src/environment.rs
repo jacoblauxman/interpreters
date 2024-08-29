@@ -1,7 +1,7 @@
 use crate::{ExprValue, RuntimeError, Token};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Environment {
     values: HashMap<String, ExprValue>,
     enclosing: Option<Rc<RefCell<Environment>>>,
@@ -32,7 +32,7 @@ impl Environment {
         } else if let Some(enclosing) = &self.enclosing {
             enclosing.borrow().get(name)
         } else {
-            Err(RuntimeError {
+            Err(RuntimeError::RTE {
                 token: name.lexeme.clone(),
                 message: format!("Undefined variable '{}'.", name.lexeme),
                 line: name.line,
@@ -47,7 +47,7 @@ impl Environment {
         } else if let Some(enclosing) = &mut self.enclosing {
             enclosing.borrow_mut().assign(name, value)
         } else {
-            Err(RuntimeError {
+            Err(RuntimeError::RTE {
                 token: name.lexeme.clone(),
                 message: format!("Undefined variable '{}'", name.lexeme),
                 line: name.line,

@@ -7,11 +7,15 @@ use std::{
 };
 
 #[derive(Debug, thiserror::Error)]
-#[error("[line {line}] Runtime Error: {message}")]
-pub struct RuntimeError {
-    pub token: String,
-    pub message: String,
-    pub line: usize,
+pub enum RuntimeError {
+    #[error("[line {line}] Runtime Error: {message}")]
+    RTE {
+        token: String,
+        message: String,
+        line: usize,
+    },
+    #[error("return value of {0:?}")]
+    Return(ExprValue),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -28,12 +32,11 @@ impl Display for ExprValue {
         match self {
             ExprValue::Bool(b) => write!(f, "{b}"),
             ExprValue::Number(n) => {
-                // todo: handle '.0' decimal?
                 write!(f, "{n}")
             }
             ExprValue::String(s) => write!(f, "{s}"),
             ExprValue::Nil => write!(f, "nil"),
-            ExprValue::Call(callable) => write!(f, "<fn {} >", callable.name()),
+            ExprValue::Call(callable) => write!(f, "{}", callable),
         }
     }
 }
@@ -57,21 +60,22 @@ impl TryFrom<&str> for InterpreterStatus {
 }
 
 #[derive(Default, Debug, Clone)]
+#[allow(dead_code)]
 pub struct Interpreter {
-    environment: Rc<RefCell<Environment>>,
+    pub environment: Rc<RefCell<Environment>>,
     status: InterpreterStatus,
-    globals: Environment,
+    // globals: Environment,
+    globals: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        let globals = Environment::new();
-        // globals.assign(name, value);
+        // TODO: need to organize globals for the `clock` function implemented in 'jlox'
+        let globals = Rc::new(RefCell::new(Environment::new()));
         Interpreter {
             // environment: Rc::new(RefCell::new(Environment::new())),
-            environment: Rc::new(RefCell::new(Environment::new())),
+            environment: globals.clone(),
             status: InterpreterStatus::Evaluate,
-            // globals: Environment::new(),
             globals,
         }
     }
@@ -100,23 +104,44 @@ impl Interpreter {
             Stmt::Expression(_) => self.eval_expr_stmt(stmt),
             Stmt::Print(_) => self.eval_print_stmt(stmt),
             Stmt::Var(name, initializer) => self.eval_var_stmt(name, initializer),
-            Stmt::Block(statements) => self.eval_block_stmt(statements),
+            Stmt::Block(statements) => self.eval_block_stmt(statements, None),
             Stmt::If {
                 condition,
                 then_branch,
                 else_branch,
             } => self.eval_if_stmt(condition, then_branch, else_branch),
             Stmt::While { condition, body } => self.eval_while_stmt(condition, body),
-            Stmt::Function(_) => todo!(),
+            Stmt::Function(callable) => self.eval_function_stmt(callable),
+            Stmt::Return(_, val) => self.eval_return_stmt(val),
         }
     }
 
-    fn eval_block_stmt(&mut self, statements: &[Stmt]) -> Result<(), RuntimeError> {
+    fn eval_function_stmt(&mut self, callable: &Callable) -> Result<(), RuntimeError> {
+        match callable {
+            Callable::Function { name, .. } => {
+                let function = ExprValue::Call(callable.clone());
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), function);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn eval_block_stmt(
+        &mut self,
+        statements: &[Stmt],
+        environment: Option<Environment>,
+    ) -> Result<(), RuntimeError> {
         let prev_env = self.environment.clone();
 
-        self.set_env(Rc::new(RefCell::new(Environment::with_enclosing(
-            prev_env.clone(),
-        ))));
+        let block_env = match environment {
+            Some(env) => env,
+            None => Environment::with_enclosing(prev_env.clone()),
+        };
+
+        self.environment = Rc::new(RefCell::new(block_env));
 
         let block_eval: Result<(), RuntimeError> = (|| {
             for stmt in statements.iter() {
@@ -130,8 +155,7 @@ impl Interpreter {
         block_eval
     }
 
-    fn eval_expr_stmt(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
-        // fn eval_expr_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn eval_expr_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression(expr) => {
                 let stmt = self.evaluate(expr)?;
@@ -145,8 +169,7 @@ impl Interpreter {
         }
     }
 
-    fn eval_print_stmt(&self, stmt: &Stmt) -> Result<(), RuntimeError> {
-        // fn eval_print_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn eval_print_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Print(expr) => {
                 let stmt = self.evaluate(expr)?;
@@ -158,8 +181,18 @@ impl Interpreter {
         }
     }
 
-    fn eval_var_stmt(&self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
-        // fn eval_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
+    fn eval_return_stmt(&mut self, val: &Option<Expr>) -> Result<(), RuntimeError> {
+        match val {
+            Some(stmt_val) => {
+                let return_val = self.evaluate(stmt_val)?;
+
+                Err(RuntimeError::Return(return_val))
+            }
+            None => Ok(()),
+        }
+    }
+
+    fn eval_var_stmt(&mut self, name: &Token, initializer: &Expr) -> Result<(), RuntimeError> {
         let expr = self.evaluate(initializer)?;
         self.environment
             .borrow_mut()
@@ -170,8 +203,7 @@ impl Interpreter {
 
     fn eval_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
         // let expr_val = self.evaluate(condition)?; // nope! this makes conditional only evaluated once (!!)
-
-        while self.is_truthy(&self.evaluate(condition)?) {
+        while self.is_truthy(&self.clone().evaluate(condition)?) {
             self.execute(body)?;
         }
 
@@ -195,8 +227,7 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn evaluate(&self, expr: &Expr) -> Result<ExprValue, RuntimeError> {
-        // pub fn evaluate(&mut self, expr: &Expr) -> Result<ExprValue, RuntimeError> {
+    pub fn evaluate(&mut self, expr: &Expr) -> Result<ExprValue, RuntimeError> {
         match expr {
             Expr::Bool(b) => Ok(ExprValue::Bool(*b)),
             Expr::Number(n) => Ok(ExprValue::Number(*n)),
@@ -209,7 +240,6 @@ impl Interpreter {
                 right,
                 left,
             } => self.evaluate_binary(operator, left, right),
-            //
             Expr::Variable(name) => self.environment.borrow().get(name),
             Expr::Assign(name, val) => {
                 let val = self.evaluate(val)?;
@@ -221,7 +251,6 @@ impl Interpreter {
                 left,
                 right,
             } => self.evaluate_logical(operator, left, right),
-            // Expr::Call { .. } => todo!(),
             Expr::Call {
                 callee,
                 paren,
@@ -230,12 +259,11 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_unary(&self, operator: &Token, right: &Expr) -> Result<ExprValue, RuntimeError> {
-        // fn evaluate_unary(
-        //     &mut self,
-        //     operator: &Token,
-        //     right: &Expr,
-        // ) -> Result<ExprValue, RuntimeError> {
+    fn evaluate_unary(
+        &mut self,
+        operator: &Token,
+        right: &Expr,
+    ) -> Result<ExprValue, RuntimeError> {
         let right = self.evaluate(right)?;
 
         match operator.token_type {
@@ -244,7 +272,7 @@ impl Interpreter {
                 let expr_num = self.check_num_operand(operator, &right)?;
                 Ok(ExprValue::Number(-expr_num))
             }
-            _ => Err(RuntimeError {
+            _ => Err(RuntimeError::RTE {
                 token: operator.to_string(),
                 message: "Invalid operator found in unary expression".to_string(),
                 line: operator.line,
@@ -253,17 +281,11 @@ impl Interpreter {
     }
 
     fn evaluate_binary(
-        &self,
+        &mut self,
         operator: &Token,
         left: &Expr,
         right: &Expr,
     ) -> Result<ExprValue, RuntimeError> {
-        // fn evaluate_binary(
-        //     &mut self,
-        //     operator: &Token,
-        //     left: &Expr,
-        //     right: &Expr,
-        // ) -> Result<ExprValue, RuntimeError> {
         let left = self.evaluate(left)?;
         let right = self.evaluate(right)?;
 
@@ -296,7 +318,7 @@ impl Interpreter {
                     let expr_val = left + &right;
                     Ok(ExprValue::String(expr_val))
                 }
-                _ => Err(RuntimeError {
+                _ => Err(RuntimeError::RTE {
                     token: operator.lexeme.to_string(),
                     message: "Operands must be two numbers or two strings.".to_string(),
                     line: operator.line,
@@ -312,7 +334,7 @@ impl Interpreter {
             }
             TokenType::NOTEQUAL => Ok(ExprValue::Bool(!self.is_equal(&left, &right))),
             TokenType::EQUAL => Ok(ExprValue::Bool(self.is_equal(&left, &right))),
-            _ => Err(RuntimeError {
+            _ => Err(RuntimeError::RTE {
                 token: operator.lexeme.to_string(),
                 message: "Unrecognized binary operator.".to_string(),
                 line: operator.line,
@@ -321,8 +343,7 @@ impl Interpreter {
     }
 
     fn evaluate_call(
-        &self,
-        // &mut self, // this causes all 'evaluate' calls to require &mut self?
+        &mut self,
         callee: &Expr,
         paren: &Token,
         arguments: &[Box<Expr>],
@@ -337,25 +358,19 @@ impl Interpreter {
 
         if let ExprValue::Call(function) = callee {
             let (args_len, fn_arity) = (args.len(), function.arity());
-            // if args.len() != function.arity() {
             if args_len != fn_arity {
-                return Err(RuntimeError {
+                return Err(RuntimeError::RTE {
                     token: paren.lexeme.clone(),
-                    message: format!(
-                        "Expected {} arguments but got {}.",
-                        // function.arity(),
-                        // args.len()
-                        fn_arity,
-                        args_len
-                    ),
+                    message: format!("Expected {} arguments but got {}.", fn_arity, args_len),
                     line: paren.line,
                 });
             }
 
-            let mut interpreter = self.clone(); // TODO: FIX THIS MESS
-            Ok(function.call(&mut interpreter, args))
+            // let mut interpreter = self.clone(); // TODO: FIX THIS MESS?
+            // Ok(function.call(&mut interpreter, args)?)
+            Ok(function.call(self, args)?)
         } else {
-            Err(RuntimeError {
+            Err(RuntimeError::RTE {
                 token: paren.lexeme.clone(),
                 message: "Can only call functions and methods".to_string(),
                 line: paren.line,
@@ -364,17 +379,11 @@ impl Interpreter {
     }
 
     fn evaluate_logical(
-        &self,
+        &mut self,
         operator: &Token,
         left: &Expr,
         right: &Expr,
     ) -> Result<ExprValue, RuntimeError> {
-        // fn evaluate_logical(
-        //     &self,
-        //     operator: &Token,
-        //     left: &Expr,
-        //     right: &Expr,
-        // ) -> Result<ExprValue, RuntimeError> {
         match operator.token_type {
             TokenType::OR => Ok(self.evaluate(left)?),
             _ => Ok(self.evaluate(right)?),
@@ -389,7 +398,7 @@ impl Interpreter {
     ) -> Result<f64, RuntimeError> {
         match expr_val {
             ExprValue::Number(n) => Ok(*n),
-            _ => Err(RuntimeError {
+            _ => Err(RuntimeError::RTE {
                 token: operator.lexeme.to_string(),
                 message: "Operand must be a number.".to_string(),
                 line: operator.line,
@@ -405,7 +414,7 @@ impl Interpreter {
     ) -> Result<(f64, f64), RuntimeError> {
         match (left, right) {
             (ExprValue::Number(left), ExprValue::Number(right)) => Ok((*left, *right)),
-            _ => Err(RuntimeError {
+            _ => Err(RuntimeError::RTE {
                 token: operator.lexeme.to_string(),
                 message: "Operands must be numbers".to_string(),
                 line: operator.line,
@@ -430,13 +439,4 @@ impl Interpreter {
             _ => false,
         }
     }
-}
-
-fn create_def_env() -> Environment {
-    todo!();
-    // lzet mut env = Environment::new();
-    // let tok = Token::new(TokenType::VAR, "clock".to_string(), None, 0);
-    // let callable = Callable::Function { name: tok, params: (), body: () }
-    // env.define("clock".to_string(), ExprValue::Call(Callable::Function { name: tok, params: Vec::new(), body: Box::new(Stmt::Function(())) }));
-    // env
 }

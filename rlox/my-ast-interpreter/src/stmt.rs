@@ -17,12 +17,8 @@ pub enum Stmt {
         condition: Expr,
         body: Box<Stmt>,
     },
-    // Function {
-    //     name: Token,
-    //     params: Vec<Token>,
-    //     body: Vec<Stmt>,
-    // },
     Function(Callable),
+    Return(Token, Option<Expr>),
 }
 
 impl Display for Stmt {
@@ -59,7 +55,28 @@ impl Display for Stmt {
                 writeln!(f, "{}", body)?;
                 writeln!(f, "}}")
             }
-            Stmt::Function(_) => todo!(),
+            Stmt::Function(callable) => match callable {
+                Callable::Function { name, params, body } => {
+                    write!(f, "fun {}(", name.lexeme)?;
+                    for (i, param) in params.iter().enumerate() {
+                        if i < params.len() - 1 {
+                            write!(f, "{}, ", param)?;
+                        } else {
+                            write!(f, "{}", param)?;
+                        }
+                    }
+                    writeln!(f, ") {{")?;
+                    write!(f, "{}", body)?;
+                    write!(f, "}}")
+                }
+            },
+            Stmt::Return(_, val) => {
+                if let Some(expr) = val {
+                    write!(f, "{}", expr)
+                } else {
+                    write!(f, "nil")
+                }
+            }
         }
     }
 }
