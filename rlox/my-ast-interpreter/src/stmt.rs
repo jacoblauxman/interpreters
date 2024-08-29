@@ -56,7 +56,9 @@ impl Display for Stmt {
                 writeln!(f, "}}")
             }
             Stmt::Function(callable) => match callable {
-                Callable::Function { name, params, body } => {
+                Callable::Function {
+                    name, params, body, ..
+                } => {
                     write!(f, "fun {}(", name.lexeme)?;
                     for (i, param) in params.iter().enumerate() {
                         if i < params.len() - 1 {

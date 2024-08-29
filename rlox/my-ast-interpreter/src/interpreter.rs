@@ -73,15 +73,10 @@ impl Interpreter {
         // TODO: need to organize globals for the `clock` function implemented in 'jlox'
         let globals = Rc::new(RefCell::new(Environment::new()));
         Interpreter {
-            // environment: Rc::new(RefCell::new(Environment::new())),
             environment: globals.clone(),
             status: InterpreterStatus::Evaluate,
             globals,
         }
-    }
-
-    pub fn set_env(&mut self, environment: Rc<RefCell<Environment>>) {
-        self.environment = environment;
     }
 
     pub fn interpret(&mut self, statements: Vec<Stmt>) -> Result<(), RuntimeError> {
@@ -118,11 +113,19 @@ impl Interpreter {
 
     fn eval_function_stmt(&mut self, callable: &Callable) -> Result<(), RuntimeError> {
         match callable {
-            Callable::Function { name, .. } => {
-                let function = ExprValue::Call(callable.clone());
+            Callable::Function {
+                name, params, body, ..
+            } => {
+                let function = Callable::Function {
+                    name: name.clone(),
+                    params: params.clone(),
+                    body: body.clone(),
+                    closure: self.environment.clone(), // update to current interpreter env (re: parser sets to empty env)
+                };
+                let function_value = ExprValue::Call(function);
                 self.environment
                     .borrow_mut()
-                    .define(name.lexeme.clone(), function);
+                    .define(name.lexeme.clone(), function_value);
             }
         }
 
@@ -151,7 +154,7 @@ impl Interpreter {
             Ok(())
         })();
 
-        self.set_env(prev_env);
+        self.environment = prev_env;
         block_eval
     }
 

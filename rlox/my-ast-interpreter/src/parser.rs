@@ -1,5 +1,6 @@
-use crate::Callable;
+use crate::{Callable, Environment};
 use crate::{Expr, Stmt, Token, TokenLiteral, TokenType};
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, thiserror::Error)]
 #[error("{0}")]
@@ -51,7 +52,7 @@ impl Parser {
             Expr::Nil
         };
 
-        let _ = self.consume(
+        self.consume(
             &TokenType::SEMICOLON,
             "Expect ';' after variable declaration.",
         )?;
@@ -176,7 +177,7 @@ impl Parser {
 
     fn print_statement(&mut self) -> ParseStmtResult {
         let val = self.expression()?;
-        // let _ = self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
+        // self.consume(&TokenType::SEMICOLON, "Expect ';' after value.")?;
         // - want to be able to parse expr even without ';' (re: stmt) if valid syntax
         // - evaluation stage should provide RTE instead)
         self.match_types(&[TokenType::SEMICOLON]);
@@ -187,19 +188,13 @@ impl Parser {
     fn return_statement(&mut self) -> ParseStmtResult {
         let keyword = self.previous().clone();
 
-        // let mut val = None;
-
-        // if !self.check(&TokenType::SEMICOLON) {
-        //     val = Some(self.expression()?);
-        // }
-
         let val = if !self.check(&TokenType::SEMICOLON) {
             Some(self.expression()?)
         } else {
             None
         };
 
-        let _ = self.consume(&TokenType::SEMICOLON, "Expect ';' after return value.")?;
+        self.consume(&TokenType::SEMICOLON, "Expect ';' after return value.")?;
 
         Ok(Stmt::Return(keyword, val))
     }
@@ -214,7 +209,7 @@ impl Parser {
     fn function(&mut self, kind: &str) -> ParseStmtResult {
         let name = self.consume(&TokenType::IDENTIFIER, &format!("Expect {kind} name."))?;
 
-        let _ = self.consume(
+        self.consume(
             &TokenType::LEFTPAREN,
             &format!("Expect '(' after {kind} name."),
         )?;
@@ -236,16 +231,21 @@ impl Parser {
             }
         }
 
-        let _ = self.consume(&TokenType::RIGHTPAREN, "Expect ')' after parameters.")?;
+        self.consume(&TokenType::RIGHTPAREN, "Expect ')' after parameters.")?;
 
-        let _ = self.consume(
+        self.consume(
             &TokenType::LEFTBRACE,
             &format!("Expect '{{' before {kind} body."),
         )?;
 
         let body = Box::new(self.block()?);
 
-        Ok(Stmt::Function(Callable::Function { name, params, body }))
+        Ok(Stmt::Function(Callable::Function {
+            name,
+            params,
+            body,
+            closure: Rc::new(RefCell::new(Environment::new())),
+        }))
     }
 
     fn block(&mut self) -> Result<Stmt, ParseError> {
@@ -253,13 +253,9 @@ impl Parser {
 
         while !self.check(&TokenType::RIGHTBRACE) && !self.is_at_end() {
             statements.push(self.declaration()?);
-            // let stmt = self.declaration()?;
-            // println!("parsed stmt in block: {:?}", stmt);
-            // statements.push(stmt);
         }
-        // println!("exiting block, curr tok: {}", self.peek());
 
-        let _ = self.consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
+        self.consume(&TokenType::RIGHTBRACE, "Expect '}' after block.")?;
 
         Ok(Stmt::Block(statements))
     }
@@ -438,26 +434,6 @@ impl Parser {
             }
         }
 
-        // if !self.check(&TokenType::RIGHTPAREN) {
-        //     while self.match_types(&[TokenType::COMMA]) {
-        //         if arguments.len() >= 255 {
-        //             return Err(ParseError(
-        //                 "Can't have more than 255 arguments.".to_string(),
-        //             ));
-        //         }
-        //         arguments.push(Box::new(self.expression()?));
-        //     }
-        // }
-
-        // let mut paren = None;
-
-        // if self.match_types(&[TokenType::RIGHTPAREN]) {
-        //     paren = Some(self.consume(
-        //         &TokenType::RIGHTPAREN,
-        //         "Expect ')' after function arguments.",
-        //     )?);
-        // }
-
         let paren = self.consume(
             &TokenType::RIGHTPAREN,
             "Expect ')' after function arguments.",
@@ -521,7 +497,6 @@ impl Parser {
     }
 
     fn consume(&mut self, token_type: &TokenType, message: &str) -> Result<Token, ParseError> {
-        // println!("in consume, curr token: {}", self.tokens[self.current]);
         if self.check(token_type) {
             return Ok(self.advance().clone());
         } else {
