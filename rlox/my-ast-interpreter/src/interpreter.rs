@@ -2,6 +2,7 @@ use crate::Callable;
 use crate::{Environment, Expr, Stmt, Token, TokenType};
 use std::{
     cell::RefCell,
+    collections::HashMap,
     fmt::{Display, Formatter},
     rc::Rc,
 };
@@ -66,6 +67,7 @@ pub struct Interpreter {
     status: InterpreterStatus,
     // globals: Environment,
     globals: Rc<RefCell<Environment>>,
+    pub locals: HashMap<Expr, usize>,
 }
 
 impl Interpreter {
@@ -76,6 +78,7 @@ impl Interpreter {
             environment: globals.clone(),
             status: InterpreterStatus::Evaluate,
             globals,
+            locals: HashMap::new(),
         }
     }
 
@@ -85,6 +88,10 @@ impl Interpreter {
         }
 
         Ok(())
+    }
+
+    pub fn resolve(&mut self, expr: &Expr, depth: usize) {
+        self.locals.insert(expr.clone(), depth);
     }
 
     pub fn set_status(&mut self, status: &str) -> Result<(), String> {

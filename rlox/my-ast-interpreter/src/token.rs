@@ -1,6 +1,9 @@
-use std::fmt;
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TokenType {
     LEFTPAREN,
     RIGHTPAREN,
@@ -99,13 +102,34 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum TokenLiteral {
     Number(f64),
     String(String),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl Hash for TokenLiteral {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Number(f) => f.to_bits().hash(state),
+            Self::String(s) => s.hash(state),
+        }
+    }
+}
+
+impl PartialEq for TokenLiteral {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TokenLiteral::Number(a), TokenLiteral::Number(b)) => a.to_bits() == b.to_bits(),
+            (TokenLiteral::String(a), TokenLiteral::String(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for TokenLiteral {}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
