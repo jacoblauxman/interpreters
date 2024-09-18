@@ -1,4 +1,4 @@
-package lox;
+package jlox.lox;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -7,10 +7,11 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import lox.Interpreter;
-import lox.RuntimeError;
-import lox.Scanner;
-import lox.Token;
+import jlox.lox.Interpreter;
+import jlox.lox.Resolver;
+import jlox.lox.RuntimeError;
+import jlox.lox.Scanner;
+import jlox.lox.Token;
 
 public class Lox {
 
@@ -52,29 +53,18 @@ public class Lox {
         }
     }
 
-    // private static void run(String source) {
-    //     Scanner scanner = new Scanner(source);
-    //     List<Token> tokens = scanner.scanTokens();
-
-    //     // For now, just print the tokens.
-    //     for (Token token : tokens) {
-    //         System.out.println(token);
-    //     }
-    // }
     private static void run(String source) {
         Scanner scanner = new Scanner(source);
         List<Token> tokens = scanner.scanTokens();
 
         Parser parser = new Parser(tokens);
-        // Expr expression = parser.parse();
-        // Ch 8 update for statements
         List<Stmt> statements = parser.parse();
-        //
         if (hadError) return;
 
-        // System.out.println(new AstPrinter().print(expression)); // previous example re: AST printout
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+        if (hadError) return;
 
-        // interpreter.interpret(expression); // updated for statements
         interpreter.interpret(statements);
     }
 

@@ -1,4 +1,4 @@
-package tools;
+package jlox.tools;
 
 import java.io.IOException;
 import java.io.PrintWriter;

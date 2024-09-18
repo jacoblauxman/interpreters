@@ -1,14 +1,15 @@
-package lox;
+package jlox.lox;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
-    // Ch 10 update
-    // private Environment environment = new Environment(); // stored in Interpreter directly so vars stay in mem while interpreter runs
     final Environment globals = new Environment();
     private Environment environment = globals; // fixed ref to outermost global env (for ffi -- ex. `clock`)
+    private final Map<Expr, Integer> locals = new HashMap<>(); // "side table" - stores data separate from objs related to
 
     Interpreter() {
         // clock var defines annon Java class that impl's LoxCallable
@@ -136,6 +137,13 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         stmt.accept(this);
     }
 
+    // The Resolver visits var + tells interpreter how many scopes between curr scope + scope def'd
+    // -- runtime corresponds to 'N' Environment(s) between curr + enclosing where interpreter can find var val
+
+    void resolve(Expr expr, int depth) {
+        locals.put(expr, depth);
+    }
+
     void executeBlock(List<Stmt> statements, Environment environment) {
         Environment previous = this.environment; // saves block / environment state to reassign after handling scoped statements
 
@@ -218,13 +226,31 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
-        environment.assign(expr.name, value);
+
+        // environment.assign(expr.name, value);
+        Integer distance = locals.get(expr);
+        if (distance != null) {
+            environment.assignAt(distance, expr.name, value);
+        } else {
+            globals.assign(expr.name, value);
+        }
+
         return value; // returned in cases of assignment within other statements (ex: `var a = 2; print a = 3;`)
     }
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        // return environment.get(expr.name);
+        return lookUpVariable(expr.name, expr); //
+    }
+
+    private Object lookUpVariable(Token name, Expr expr) {
+        Integer distance = locals.get(expr);
+        if (distance != null) {
+            return environment.getAt(distance, name.lexeme);
+        } else {
+            return globals.get(name);
+        }
     }
 
     @Override
@@ -299,8 +325,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 expr.paren,
                 "Expected " +
                 function.arity() +
-                " arugments but got " +
-                arugments.size() +
+                " arguments but got " +
+                arguments.size() +
                 "."
             );
         }

@@ -1,4 +1,4 @@
-package lox;
+package jlox.lox;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ class LoxFunction implements LoxCallable {
         return declaration.params.size();
     }
 
-    @override
+    @Override
     public String toString() {
         return "<fn " + declaration.name.lexeme + ">";
     }
