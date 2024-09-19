@@ -43,7 +43,6 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
 
-        // let mut scope = self.scopes.peek();
         let scope = self
             .scopes
             .last_mut()

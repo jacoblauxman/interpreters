@@ -78,7 +78,6 @@ impl PartialEq for Expr {
             (Expr::Number(a), Expr::Number(b)) => a.to_bits() == b.to_bits(),
             (Expr::String(a), Expr::String(b)) => a == b,
             (Expr::Bool(a), Expr::Bool(b)) => a == b,
-            (Expr::Nil, Expr::Nil) => true, // not sure if correct?
             (Expr::Grouping(a), Expr::Grouping(b)) => a == b,
             (
                 Expr::Unary {
@@ -140,7 +139,7 @@ impl Eq for Expr {}
 impl Hash for Expr {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Expr::Number(f) => f.to_bits().hash(state), // convert f64 to u65
+            Expr::Number(f) => f.to_bits().hash(state), // convert f64 to u64
             Expr::String(s) => s.hash(state),
             Expr::Bool(b) => b.hash(state),
             Expr::Nil => "nil".hash(state),

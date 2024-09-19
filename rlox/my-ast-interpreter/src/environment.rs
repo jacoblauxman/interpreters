@@ -50,14 +50,9 @@ impl Environment {
     }
 
     fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment>> {
-        // let mut environment = self;
-        // let mut environment = self.clone();
         let mut environment = Rc::new(RefCell::new(self.clone()));
 
         for _ in 0..distance {
-            // if let Some(enclosing) = environment.enclosing {
-            //     environment = enclosing.clone();
-            // }
             let enclosing = environment.borrow().enclosing.clone();
             environment = enclosing.expect("should find enclosing environment");
         }

@@ -98,9 +98,6 @@ impl Interpreter {
         if let Some(distance) = self.locals.get(expr) {
             self.environment.borrow().get_at(*distance, token)
         } else {
-            // self.globals
-            //     .get(&expr)
-            //     .expect("globals should have var from variable expression")
             self.globals
                 .borrow()
                 .get(token)
@@ -226,7 +223,6 @@ impl Interpreter {
     }
 
     fn eval_while_stmt(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
-        // let expr_val = self.evaluate(condition)?; // nope! this makes conditional only evaluated once (!!)
         while self.is_truthy(&self.clone().evaluate(condition)?) {
             self.execute(body)?;
         }
@@ -264,7 +260,6 @@ impl Interpreter {
                 right,
                 left,
             } => self.evaluate_binary(operator, left, right),
-            // Expr::Variable(name) => self.environment.borrow().get(name),
             Expr::Variable(name) => Ok(self.look_up_var(name, expr)),
             Expr::Assign(name, val) => {
                 let val = self.evaluate(val)?;
@@ -275,7 +270,6 @@ impl Interpreter {
                 } else {
                     self.globals.borrow_mut().assign(name, val.clone())?;
                 }
-                // self.environment.borrow_mut().assign(name, val.clone())?;
                 Ok(val)
             }
             Expr::Logical {
@@ -398,8 +392,6 @@ impl Interpreter {
                 });
             }
 
-            // let mut interpreter = self.clone(); // TODO: FIX THIS MESS?
-            // Ok(function.call(&mut interpreter, args)?)
             Ok(function.call(self, args)?)
         } else {
             Err(RuntimeError::RTE {

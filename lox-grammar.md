@@ -103,8 +103,13 @@ primary    -> NUMBER | STRING
             | IDENTIFIER ;
 ```
 
+
+
+
+
 # CH 10:
 ```
+
 program     -> declaration* EOF ;
 declaration -> funDecl
              | varDecl
@@ -144,6 +149,57 @@ factor     -> unary ( ( "/" | "*" ) unary)* ;
 unary      -> ( "-" | "!" ) unary
             | call ;
 call       -> primary ( "(" arguments? ")" )* ;
+primary    -> NUMBER | STRING
+            | "true" | "false" | "nil"
+            | "(" expression ")"
+            | IDENTIFIER ;
+```
+
+
+# CH 12:
+```
+
+program     -> declaration* EOF ;
+declaration -> classDecl
+             | funDecl
+             | varDecl
+             | statement ;
+statement   -> exprStmt
+             | forStmt
+             | ifStmt
+             | printStmt
+             | returnStmt
+             | whileStmt
+             | block ;
+exprStmt    -> expression ";" ;
+printStmt   -> "print" expression ";" ;
+returnStmt  -> "return" expression? ";" ;
+block       -> "{" declaration* "}"
+classDecl   -> "class" IDENTIFIER "{" function* "}" ;
+funDecl     -> "fun" function ;
+function    -> IDENTIFIER "(" parameters? ")" block ;
+parameters  -> IDENTIFIER ( "," IDENTIFIER )* ;
+varDecl     -> "var" IDENTIFIER ( "=" expression )? ";" ;
+ifStmt      -> "if" "(" expression ")" statement
+               ( "else" statement )? ;
+whileStmt   -> "while" "(" expression ")" statement ;
+forStmt     -> "for" "(" ( varDecl | exprStmt | ";" )
+               expression? ";"
+               expression? ")" statement ;
+
+arguments  -> expression ( "," expression )* ;
+expression -> assignment ;
+assignment -> ( call "." )? IDENTIFIER "=" assignment     (NOTE: updated for property access -- setter)
+            | logic_or ;
+logic_or   -> logic_and ( "or" logic_and )* ;
+logic_and  -> equality ( "and" equality )* ;
+equality   -> comparison ( ( "!=" | "==" ) comparison)* ;
+comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term       -> factor ( ( "-" | "+" ) factor)* ;
+factor     -> unary ( ( "/" | "*" ) unary)* ;
+unary      -> ( "-" | "!" ) unary
+            | call ;
+call       -> primary ( "( arguments? ")" | "." IDENTIFIER)* ;  (NOTE: updated for property access -- getter)
 primary    -> NUMBER | STRING
             | "true" | "false" | "nil"
             | "(" expression ")"
