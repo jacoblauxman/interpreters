@@ -24,7 +24,9 @@ public class Lox {
 
     public static void main(String[] args) throws IOException {
         if (args.length > 1) {
-            System.out.println("Usage: jlox [script]");
+            System.out.println(
+                "Usage: `jlox [script]` to run script file, `jlox` to open REPL"
+            );
             System.exit(64);
         } else if (args.length == 1) {
             runFile(args[0]);

@@ -7,7 +7,7 @@ void disassembleChunk(Chunk *chunk, const char *name) {
     printf("== %s ==\n", name);
 
     for (int offset = 0; offset <chunk->count;) {
-        offset = disassembleInstruction(chunk, offset); // this call returns offset of NEXT instruction (since can be of diff. size)
+        offset = disassembleInstruction(chunk, offset); // this call returns offset of NEXT instruction (since instructions can be of diff. sizes)
     }
 }
 
@@ -27,7 +27,12 @@ static int simpleInstruction(const char* name, int offset) {
 
 int disassembleInstruction(Chunk *chunk, int offset) {
     printf("%04d ", offset); // where in chunk this instruction is
-
+    // note: & = start of format specifier :: 0 = num padded with zeroes (not spaces) if shorter than specified width :: 4 = min width of output field :: d = expect integer, format as decimal num'
+ if (offset > 0 && chunk->lines[offset] == chunk->lines[offset - 1]) {
+     printf("  | ");
+ } else {
+     printf("%4d ", chunk->lines[offset]);
+ }
     uint8_t instruction = chunk->code[offset]; // read single byte (opcode)
     switch (instruction) {
         case OP_RETURN:

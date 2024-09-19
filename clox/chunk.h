@@ -15,12 +15,15 @@ typedef struct {
     int count;
     int capacity;
     uint8_t* code;
+    int* lines; // each int in arr is line # for corresponding byte in bytecode
     ValueArray constants;
 } Chunk;
 
 void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
-void writeChunk(Chunk* chunk, uint8_t byte);
+void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
 
 #endif
+
+// notes: `lines` is kept separate since info only useful with RTE, don't put between instructions to take up CPU cache (cache misses++)
