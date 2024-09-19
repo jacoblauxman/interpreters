@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import jlox.lox.Interpreter;
+import jlox.lox.LoxClass;
+import jlox.lox.LoxInstance;
 import jlox.lox.Resolver;
 import jlox.lox.RuntimeError;
 import jlox.lox.Scanner;

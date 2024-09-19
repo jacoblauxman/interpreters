@@ -36,7 +36,7 @@ public class GenerateAst {
             "Stmt",
             Arrays.asList(
                 "Block : List<Stmt> statements",
-                "Class : List<Stmt.Function> methods",
+                "Class : Token name, List<Stmt.Function> methods",
                 "Expression : Expr expression",
                 "Print : Expr expression",
                 "Return : Token keyword, Expr value", // keeps 'return' Token for rerror reporting
@@ -58,8 +58,7 @@ public class GenerateAst {
         String path = outputDir + "/" + baseName + ".java";
         PrintWriter writer = new PrintWriter(path, "UTF-8");
 
-        // writer.println("package craftinginterpreters.lox;");
-        writer.println("package lox;");
+        writer.println("package jlox.lox;");
         writer.println();
         writer.println("import java.util.List;");
         writer.println();
