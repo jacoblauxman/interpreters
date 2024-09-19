@@ -5,4 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define DEBUG_TRACE_EXECUTION // flag to disassemble and print each instrcution before execution (dynamically)
+
 #endif
