@@ -1,4 +1,4 @@
-use my_bytecode_interpreter::{Chunk, OpCode, Value};
+use my_bytecode_interpreter::{disassemble, Chunk, OpCode, Value};
 
 fn main() {
     let mut chunk = Chunk::new();
@@ -9,6 +9,7 @@ fn main() {
 
     chunk.write_chunk(constant as u8, line);
 
-    let byte = OpCode::Return;
-    chunk.write_chunk(byte as u8, line);
+    chunk.write_chunk(OpCode::Return as u8, line);
+
+    disassemble(&chunk, "test chunk");
 }

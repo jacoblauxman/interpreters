@@ -1,6 +1,10 @@
 use std::fmt::{Display, Formatter};
 
 mod debug;
+use debug::disassemble_instruction;
+pub use debug::{disassemble, print_value};
+
+const DEBUG_TRACE_EXECUTION: bool = true;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OpCode {
@@ -18,7 +22,7 @@ impl From<u8> for OpCode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Value {
     Number(f64),
 }
@@ -33,9 +37,9 @@ impl Display for Value {
 
 #[derive(Debug)]
 pub struct Chunk {
-    code: Vec<u8>, // Vec handles 'count' and 'capacity'
-    constants: Vec<Value>,
-    lines: Vec<usize>,
+    pub code: Vec<u8>, // Vec handles 'count' and 'capacity'
+    pub constants: Vec<Value>,
+    pub lines: Vec<usize>,
 }
 
 impl Chunk {
@@ -53,54 +57,84 @@ impl Chunk {
     }
 
     // returns const's idx in vec
-    pub fn add_constant(&mut self, value: Value) -> usize {
+    pub fn add_constant(&mut self, value: Value) -> u8 {
         self.constants.push(value);
-        self.constants.len() - 1
+        (self.constants.len() - 1) as u8
     }
 }
 
-// pub fn disassemble(chunk: &Chunk, name: &str) {
-//     println!("== {} ==\n", name);
+pub struct VM<'a> {
+    chunk: Option<&'a Chunk>,
+    // ip: usize,
+    ip: *const u8,
+}
 
-//     let mut offset = 0;
-//     while offset < chunk.code.len() {
-//         offset = disassemble_instruction(chunk, offset);
-//     }
-// }
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InterpretResult {
+    Ok,
+    CompileError,
+    RuntimeError,
+}
 
-// fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
-//     println!("{:04}", offset);
+impl<'a> VM<'a> {
+    pub fn new() -> Self {
+        Self {
+            chunk: None,
+            ip: std::ptr::null(),
+        }
+    }
 
-//     let instruction = chunk.code[offset];
+    pub fn interpret(&mut self, chunk: &'a Chunk) -> InterpretResult {
+        self.chunk = Some(chunk);
+        self.ip = chunk.code.as_ptr();
 
-//     match OpCode::from(instruction) {
-//         OpCode::Return => simple_instruction(&"OP_RETURN", offset),
-//         OpCode::Constant => todo!(),
-//     }
+        self.run()
+    }
 
-//     // let instruction = OpCode::from(chunk.code[offset]);
-// }
+    fn run(&mut self) -> InterpretResult {
+        loop {
+            if DEBUG_TRACE_EXECUTION {
+                if let Some(chunk) = self.chunk {
+                    let code_start = chunk.code.as_ptr();
+                    // SAFETY: `code_end` is calculated with the `len` of the `code` Vec, this ensures it's a valid location in `chunk.code`'s bounds
+                    // and guarantees `code_end` points to a valid memory addr withink `chunk.code`.
+                    let code_end = unsafe { code_start.add(chunk.code.len()) };
+                    if self.ip.is_null() || self.ip < chunk.code.as_ptr() || self.ip >= code_end {
+                        return InterpretResult::RuntimeError;
+                    }
+                    // SAFETY: `offset_from` calculates diff/offset of instruction ptr `ip` relative to start of (chunk's) `code` Vec.
+                    // We have confimed `ip` is not null and points within the valid range of chunk's `code` Vec.
+                    let offset = unsafe { self.ip.offset_from(chunk.code.as_ptr()) as usize };
+                    disassemble_instruction(chunk, offset);
+                }
+            }
+            let instruction = self.read_byte();
 
-// fn simple_instruction(name: &str, offset: usize) -> usize {
-//     println!("{}", name);
-//     offset + 1
-// }
+            match OpCode::from(instruction) {
+                OpCode::Return => return InterpretResult::Ok,
+                OpCode::Constant => {
+                    let constant = self.read_constant();
+                    print_value(&constant);
+                    println!("");
+                    return InterpretResult::Ok;
+                }
+            }
+        }
+    }
 
-// fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
-//     // let constant = chunk
-//     //     .code
-//     //     .get(offset + 1)
-//     //     .expect("should find constant value within code chunk");
-//     let constant = chunk.code[offset + 1];
-//     println!("{:-16} {:4}", name, constant);
-//     print_value(&chunk.constants[constant as usize]);
-//     println!("'");
+    fn read_byte(&mut self) -> u8 {
+        unsafe {
+            let byte = *self.ip;
+            self.ip = self.ip.add(1);
 
-//     offset + 2
-// }
+            byte
+        }
+    }
 
-// fn print_value(value: &Value) {
-//     match value {
-//         Value::Number(n) => println!("{}", n),
-//     }
-// }
+    fn read_constant(&mut self) -> Value {
+        let const_idx = self.read_byte();
+        self.chunk
+            .expect("`VM` should have assigned `Chunk`")
+            .constants[const_idx as usize]
+    }
+}
