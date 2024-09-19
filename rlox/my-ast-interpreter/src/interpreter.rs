@@ -94,6 +94,20 @@ impl Interpreter {
         self.locals.insert(expr.clone(), depth);
     }
 
+    fn look_up_var(&mut self, token: &Token, expr: &Expr) -> ExprValue {
+        if let Some(distance) = self.locals.get(expr) {
+            self.environment.borrow().get_at(*distance, token)
+        } else {
+            // self.globals
+            //     .get(&expr)
+            //     .expect("globals should have var from variable expression")
+            self.globals
+                .borrow()
+                .get(token)
+                .expect("globals should have defined var from variable expression")
+        }
+    }
+
     pub fn set_status(&mut self, status: &str) -> Result<(), String> {
         let status = InterpreterStatus::try_from(status)?;
         self.status = status;
@@ -250,10 +264,18 @@ impl Interpreter {
                 right,
                 left,
             } => self.evaluate_binary(operator, left, right),
-            Expr::Variable(name) => self.environment.borrow().get(name),
+            // Expr::Variable(name) => self.environment.borrow().get(name),
+            Expr::Variable(name) => Ok(self.look_up_var(name, expr)),
             Expr::Assign(name, val) => {
                 let val = self.evaluate(val)?;
-                self.environment.borrow_mut().assign(name, val.clone())?;
+                if let Some(distance) = self.locals.get(expr) {
+                    self.environment
+                        .borrow_mut()
+                        .assign_at(*distance, name, val.clone());
+                } else {
+                    self.globals.borrow_mut().assign(name, val.clone())?;
+                }
+                // self.environment.borrow_mut().assign(name, val.clone())?;
                 Ok(val)
             }
             Expr::Logical {

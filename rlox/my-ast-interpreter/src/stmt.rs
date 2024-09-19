@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 pub enum Stmt {
     Expression(Expr),
     Print(Expr),
-    Var(Token, Expr),
+    Var(Token, Expr), // keyword, value
     Block(Vec<Stmt>),
     If {
         condition: Expr,
@@ -18,7 +18,7 @@ pub enum Stmt {
         body: Box<Stmt>,
     },
     Function(Callable),
-    Return(Token, Option<Expr>),
+    Return(Token, Option<Expr>), // keyword, value
 }
 
 impl Display for Stmt {

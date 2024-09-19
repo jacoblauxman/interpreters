@@ -1,4 +1,4 @@
-use my_ast_interpreter::{Interpreter, Parser, Scanner};
+use my_ast_interpreter::{Interpreter, Parser, Resolver, Scanner};
 use std::env;
 use std::fs;
 use std::process;
@@ -6,7 +6,10 @@ use std::process;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        eprintln!("Usage: {} tokenize | parse | evaluate <filename>", args[0]);
+        eprintln!(
+            "Usage: {} tokenize | parse | evaluate <filename> | run <filename>",
+            args[0]
+        );
 
         return;
     }
@@ -89,6 +92,13 @@ fn evaluate(file_contents: String) {
     match parser.parse() {
         Ok(statements) => {
             let mut interpreter = Interpreter::new();
+
+            let mut resolver = Resolver::new(&mut interpreter);
+            if let Err(err) = resolver.resolve(&statements) {
+                eprintln!("{err}");
+                process::exit(65);
+            }
+
             match interpreter.interpret(statements) {
                 Ok(_) => (),
                 Err(runtime_err) => {
@@ -121,6 +131,14 @@ fn run(file_contents: String) {
     match parser.parse() {
         Ok(statements) => {
             let mut interpreter = Interpreter::new();
+
+            let mut resolver = Resolver::new(&mut interpreter);
+
+            if let Err(err) = resolver.resolve(&statements) {
+                eprintln!("{err}");
+                process::exit(65);
+            }
+
             interpreter
                 .set_status("run")
                 .expect("should set interpreter status::run");

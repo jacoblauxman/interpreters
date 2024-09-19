@@ -37,9 +37,10 @@ impl Parser {
         } else {
             self.statement()
         }
-        .map_err(|err| {
+        // .map_err(|err| {
+        .inspect_err(|_| {
             self.synchronize();
-            err
+            // err;
         })
     }
 

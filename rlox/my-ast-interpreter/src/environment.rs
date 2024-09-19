@@ -4,7 +4,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Environment {
     values: HashMap<String, ExprValue>,
-    enclosing: Option<Rc<RefCell<Environment>>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
@@ -40,6 +40,31 @@ impl Environment {
         }
     }
 
+    pub fn get_at(&self, distance: usize, name: &Token) -> ExprValue {
+        self.ancestor(distance)
+            .borrow()
+            .values
+            .get(&name.lexeme)
+            .expect("should find a valid variable expression value")
+            .clone()
+    }
+
+    fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment>> {
+        // let mut environment = self;
+        // let mut environment = self.clone();
+        let mut environment = Rc::new(RefCell::new(self.clone()));
+
+        for _ in 0..distance {
+            // if let Some(enclosing) = environment.enclosing {
+            //     environment = enclosing.clone();
+            // }
+            let enclosing = environment.borrow().enclosing.clone();
+            environment = enclosing.expect("should find enclosing environment");
+        }
+
+        environment
+    }
+
     pub fn assign(&mut self, name: &Token, value: ExprValue) -> Result<(), RuntimeError> {
         if self.values.contains_key(&name.lexeme) {
             self.values.insert(name.lexeme.clone(), value);
@@ -53,5 +78,12 @@ impl Environment {
                 line: name.line,
             })
         }
+    }
+
+    pub fn assign_at(&self, distance: usize, name: &Token, value: ExprValue) {
+        self.ancestor(distance)
+            .borrow_mut()
+            .values
+            .insert(name.lexeme.clone(), value);
     }
 }

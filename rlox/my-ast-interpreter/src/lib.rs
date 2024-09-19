@@ -13,6 +13,7 @@ pub use environment::Environment;
 pub use expr::*;
 pub use interpreter::{ExprValue, Interpreter, RuntimeError};
 pub use parser::Parser;
+pub use resolver::Resolver;
 pub use scanner::Scanner;
 pub use stmt::Stmt;
 pub use token::*;

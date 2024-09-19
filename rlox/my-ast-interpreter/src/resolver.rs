@@ -1,4 +1,4 @@
-use crate::{Expr, Interpreter, Stmt, Token};
+use crate::{Callable, Expr, Interpreter, Stmt, Token};
 use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
@@ -9,23 +9,24 @@ pub struct BindingError {
     line: usize,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FunctionType {
     None,
     Function,
 }
 
-pub struct Resolver {
-    interpreter: &'static mut Interpreter,
+pub struct Resolver<'a> {
+    pub interpreter: &'a mut Interpreter,
     scopes: Vec<HashMap<String, bool>>,
-    function_type: FunctionType,
+    current_function: FunctionType,
 }
 
-impl Resolver {
-    fn new(interpreter: &'static mut Interpreter) -> Self {
+impl<'a> Resolver<'a> {
+    pub fn new(interpreter: &'a mut Interpreter) -> Self {
         Self {
             interpreter,
             scopes: vec![],
-            function_type: FunctionType::None,
+            current_function: FunctionType::None,
         }
     }
 
@@ -51,7 +52,7 @@ impl Resolver {
         if scope.contains_key(&token.lexeme) {
             return Err(BindingError {
                 token: token.lexeme.clone(),
-                message: &"Already a variable with this name in the current scope",
+                message: "Already a variable with this name in the current scope",
                 line: token.line,
             });
         }
@@ -80,7 +81,8 @@ impl Resolver {
         }
     }
 
-    fn resolve(&mut self, statements: &[Stmt]) -> Result<(), BindingError> {
+    pub fn resolve(&mut self, statements: &[Stmt]) -> Result<(), BindingError> {
+        // pub fn resolve(&mut self, statements: &[Stmt]) -> Result<Interpreter, BindingError> {
         for stmt in statements {
             self.resolve_stmt(stmt)?
         }
@@ -90,8 +92,38 @@ impl Resolver {
 
     fn resolve_stmt(&mut self, stmt: &Stmt) -> Result<(), BindingError> {
         match stmt {
-            Stmt::Expression(expr) => self.resolve_expr(expr),
-            Stmt::Print(expr) => self.resolve_expr(expr),
+            Stmt::Block(stmts) => {
+                self.begin_scope();
+                self.resolve(stmts)?;
+                self.end_scope();
+            }
+            Stmt::Expression(expr) => self.resolve_expr(expr)?,
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.resolve_expr(condition)?;
+                self.resolve_stmt(then_branch)?;
+                if let Some(else_branch) = else_branch {
+                    self.resolve_stmt(else_branch)?;
+                }
+            }
+            Stmt::Print(expr) => self.resolve_expr(expr)?,
+            Stmt::Return(keyword, val) => {
+                if self.current_function == FunctionType::None {
+                    return Err(BindingError {
+                        token: String::default(),
+                        message: "Can't return from top-level code.",
+                        line: keyword.line,
+                    });
+                }
+
+                if let Some(val) = val {
+                    self.resolve_expr(val)?;
+                }
+            }
+
             Stmt::Var(token, initializer) => {
                 self.declare(token)?;
                 if initializer == &Expr::Nil {
@@ -99,17 +131,49 @@ impl Resolver {
                 }
 
                 self.define(token);
-                Ok(())
             }
-            Stmt::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => {
-                todo!()
+            Stmt::While { condition, body } => {
+                self.resolve_expr(condition)?;
+                self.resolve_stmt(body)?;
             }
-            _ => todo!(),
+            Stmt::Function(callable) => match callable {
+                Callable::Function { name, .. } => {
+                    self.declare(name)?;
+                    self.define(name);
+
+                    self.resolve_function_stmt(callable, FunctionType::Function)?;
+                }
+            },
         }
+
+        Ok(())
+    }
+
+    fn resolve_function_stmt(
+        &mut self,
+        function: &Callable,
+        fn_type: FunctionType,
+    ) -> Result<(), BindingError> {
+        let enclosing_fn = self.current_function;
+        self.current_function = fn_type;
+
+        self.begin_scope();
+
+        match function {
+            Callable::Function { params, body, .. } => {
+                for param in params {
+                    self.declare(param)?;
+                    self.define(param);
+                }
+
+                self.resolve_stmt(body)?;
+            }
+        }
+
+        self.end_scope();
+        self.current_function = enclosing_fn;
+
+        Ok(())
     }
 
     fn resolve_expr(&mut self, expr: &Expr) -> Result<(), BindingError> {
