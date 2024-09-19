@@ -35,6 +35,14 @@ static InterpretResult run() {
 
     #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()]) // treats res of READ_BYTE as idx of `Value` to look up from chunk
 
+    // left operand pushed before right (pop order), then return binary op's result to stack
+    #define BINARY_OP(op) \
+        do { \
+            double b = pop(); \
+            double a = pop(); \
+            push(a op b); \
+        } while(false)
+
     // each loop executes a single byte instruction
     for (;;) {
         #ifdef DEBUG_TRACE_EXECUTION
@@ -43,7 +51,7 @@ static InterpretResult run() {
             for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
                 printf("[ ");
                 printValue(*slot);
-                printf(" ");
+                printf(" ]");
             }
             printf("\n");
             disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code)); // need integer offset, vm.ip is current instr. ref (direct ptr), convert it back relative to beginning of bytecode (curr - src)
@@ -53,10 +61,16 @@ static InterpretResult run() {
         switch (instruction = READ_BYTE()) {
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT();
-                printValue(constant); // for now just print constant's value
-                printf("\n");
+                // printValue(constant); // for now just print constant's value
+                // printf("\n");
+                push(constant);
                 break;
             }
+            case OP_ADD: BINARY_OP(+); break;
+            case OP_SUBTRACT: BINARY_OP(-); break;
+            case OP_MULTIPLY: BINARY_OP(*); break;
+            case OP_DIVIDE: BINARY_OP(/); break;
+            case OP_NEGATE: push(-pop()); break; // negates last val + returns to stack
             case OP_RETURN: {
                 printValue(pop()); // temp. means for executing simple instr. sequence + display
                 printf("\n");
@@ -67,6 +81,7 @@ static InterpretResult run() {
 
     #undef READ_BYTE
     #undef READ_CONSTANT
+    #undef BINARY_OP
 }
 
 InterpretResult interpret(Chunk* chunk) {
