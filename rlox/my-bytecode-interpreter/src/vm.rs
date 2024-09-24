@@ -1,4 +1,3 @@
-//vm.rs
 use crate::{disassemble_instruction, print_value, Chunk, OpCode, Value, DEBUG_TRACE_EXECUTION};
 
 pub const STACK_MAX: usize = 256;
@@ -58,7 +57,6 @@ impl<'a> Vm<'a> {
             self.stack_top = self.stack_top.sub(1);
             let value = *self.stack_top;
 
-            // Ok(*self.stack_top)
             Ok(value)
         }
     }

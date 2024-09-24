@@ -2,8 +2,10 @@ use my_bytecode_interpreter::{disassemble, Chunk, OpCode, Value, Vm};
 
 fn main() {
     let mut vm = Vm::new();
+
     vm.init();
     // let mut vm = Vm::init_vm();
+
     let mut chunk = Chunk::new();
     let line = 123;
     let mut constant = chunk.add_constant(Value::Number(1.2));
